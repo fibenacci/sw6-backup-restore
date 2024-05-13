@@ -33,7 +33,8 @@ while IFS= read -r line; do
     fi
   fi
 done < "$ENV_FILE"
-
+git reset --hard
+git pull
 bin/console cache:clear
 bin/console system:update:prepare
 composer install
