@@ -1,7 +1,9 @@
 #!/bin/bash
 
-SHOP_DIR="shop"
+# Default values
+SHOP_DIR="$PWD/shop"
 
+# Function to show usage information
 usage() {
     echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path]"
     echo "Options:"
@@ -12,6 +14,7 @@ usage() {
     exit 1
 }
 
+# Function to download and configure Shopware CLI Tools
 download_shopware_cli() {
     echo "Downloading and configuring Shopware CLI Tools..."
     cd ~/../../web/
@@ -22,8 +25,10 @@ download_shopware_cli() {
     ./shopware-cli project config init
 }
 
+# Function to decode URL encoded strings
 urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 
+# Function to create MySQL backup using Shopware CLI Tools
 create_mysql_backup() {
     echo "Creating MySQL backup using Shopware CLI Tools..."
 
@@ -50,16 +55,20 @@ create_mysql_backup() {
             read -sp "Database password: " DB_PASS
             echo
         else
-            PROTOCOL="$(echo $DATABASE_URL | grep :// | sed -e's,^\(.*://\).*,\1,g')"
-            URL="$(echo ${DATABASE_URL/$PROTOCOL/})"
-            USERPASS="$(echo $URL | grep @ | cut -d@ -f1)"
-            PASS="$(echo $USERPASS | grep : | cut -d: -f2)"
-            USER="$(echo $USERPASS | grep : | cut -d: -f1)"
-            HOSTPORT="$(echo ${URL/$USERPASS@/} | cut -d/ -f1)"
-            PORT="$(echo $HOSTPORT | grep : | cut -d: -f2)"
-            HOST="$(echo $HOSTPORT | grep : | cut -d: -f1)"
-            DB_NAME="$(echo $URL | grep / | cut -d/ -f2-)"
+            # Extracting credentials from DATABASE_URL using awk
+            PROTOCOL="$(echo $DATABASE_URL | awk -F '://' '{print $1}')"
+            URL="$(echo $DATABASE_URL | awk -F '://' '{print $2}')"
+            USERPASS="$(echo $URL | awk -F '@' '{print $1}')"
+            HOSTPORT_DB="$(echo $URL | awk -F '@' '{print $2}')"
 
+            USER="$(echo $USERPASS | awk -F ':' '{print $1}')"
+            PASS="$(echo $USERPASS | awk -F ':' '{print $2}')"
+            HOSTPORT="$(echo $HOSTPORT_DB | awk -F '/' '{print $1}')"
+            DB_NAME="$(echo $HOSTPORT_DB | awk -F '/' '{print $2}')"
+            
+            HOST="$(echo $HOSTPORT | awk -F ':' '{print $1}')"
+            PORT="$(echo $HOSTPORT | awk -F ':' '{print $2}')"
+            
             DB_USER="$(urldecode $USER)"
             DB_PASS="$(urldecode $PASS)"
             DB_HOST="$HOST"
@@ -67,10 +76,25 @@ create_mysql_backup() {
         fi
     fi
 
+    # Output the database credentials
+    echo "Database credentials:"
+    echo "  Database name: $DB_NAME"
+    echo "  Database host: $DB_HOST"
+    echo "  Database port: $DB_PORT"
+    echo "  Database username: $DB_USER"
+    echo "  Database password: $DB_PASS"
+
     cd ~/../../web/shopware_cli
     ./shopware-cli project dump $DB_NAME --host $DB_HOST --port $DB_PORT --username $DB_USER --password $DB_PASS --clean --skip-lock-tables
 }
 
+# Function to create file backup
+create_file_backup() {
+    echo "Creating backup of $SHOP_DIR directory..."
+    tar cfvz shop.tar.gz $SHOP_DIR/
+}
+
+# Function to transfer files using SCP
 transfer_files() {
     echo "Transferring files using SCP..."
     read -p "Enter username for SCP: " SCP_USER
@@ -82,10 +106,11 @@ transfer_files() {
     echo "Files transferred successfully."
 }
 
+# Parse command-line options
 while getopts ":s:u:h:d:" opt; do
     case ${opt} in
         s)
-            SHOP_DIR=$OPTARG
+            SHOP_DIR="$PWD/$OPTARG"
             ;;
         u)
             SCP_USER=$OPTARG
@@ -104,13 +129,16 @@ while getopts ":s:u:h:d:" opt; do
 done
 shift $((OPTIND -1))
 
+# Download and configure Shopware CLI Tools
 download_shopware_cli
 
-echo "Creating backup of $SHOP_DIR directory..."
-tar cfvz shop.tar.gz $SHOP_DIR/
-
+# Create MySQL backup if specified
 create_mysql_backup
 
+# Create file backup
+create_file_backup
+
+# Transfer files using SCP
 transfer_files
 
 echo "Backup and file transfer completed."
