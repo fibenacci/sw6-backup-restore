@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Default values
 SHOP_DIR="$PWD/shop"
 
-# Function to show usage information
 usage() {
     echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path]"
     echo "Options:"
@@ -14,7 +12,6 @@ usage() {
     exit 1
 }
 
-# Function to download and configure Shopware CLI Tools
 download_shopware_cli() {
     echo "Downloading and configuring Shopware CLI Tools..."
     cd ~/../../web/
@@ -25,10 +22,8 @@ download_shopware_cli() {
     ./shopware-cli project config init
 }
 
-# Function to decode URL encoded strings
 urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 
-# Function to create MySQL backup using Shopware CLI Tools
 create_mysql_backup() {
     echo "Creating MySQL backup using Shopware CLI Tools..."
 
@@ -55,7 +50,6 @@ create_mysql_backup() {
             read -sp "Database password: " DB_PASS
             echo
         else
-            # Extracting credentials from DATABASE_URL using awk
             PROTOCOL="$(echo $DATABASE_URL | awk -F '://' '{print $1}')"
             URL="$(echo $DATABASE_URL | awk -F '://' '{print $2}')"
             USERPASS="$(echo $URL | awk -F '@' '{print $1}')"
@@ -76,7 +70,6 @@ create_mysql_backup() {
         fi
     fi
 
-    # Output the database credentials
     echo "Database credentials:"
     echo "  Database name: $DB_NAME"
     echo "  Database host: $DB_HOST"
@@ -88,13 +81,11 @@ create_mysql_backup() {
     ./shopware-cli project dump $DB_NAME --host $DB_HOST --port $DB_PORT --username $DB_USER --password $DB_PASS --clean --skip-lock-tables
 }
 
-# Function to create file backup
 create_file_backup() {
     echo "Creating backup of $SHOP_DIR directory..."
-    tar cfvz shop.tar.gz $SHOP_DIR/
+    tar cfvz shop.tar.gz -C "$SHOP_DIR" .
 }
 
-# Function to transfer files using SCP
 transfer_files() {
     echo "Transferring files using SCP..."
     read -p "Enter username for SCP: " SCP_USER
@@ -106,7 +97,6 @@ transfer_files() {
     echo "Files transferred successfully."
 }
 
-# Parse command-line options
 while getopts ":s:u:h:d:" opt; do
     case ${opt} in
         s)
@@ -128,17 +118,9 @@ while getopts ":s:u:h:d:" opt; do
     esac
 done
 shift $((OPTIND -1))
-
-# Download and configure Shopware CLI Tools
 download_shopware_cli
-
-# Create MySQL backup if specified
 create_mysql_backup
-
-# Create file backup
 create_file_backup
-
-# Transfer files using SCP
-transfer_files
+#transfer_files
 
 echo "Backup and file transfer completed."
