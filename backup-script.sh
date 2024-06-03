@@ -27,8 +27,10 @@ urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 create_mysql_backup() {
     echo "Creating MySQL backup using Shopware CLI Tools..."
 
-    if [ -z "$DATABASE_URL" ]; then
-        echo "DATABASE_URL environment variable is not set. Please enter the required information:"
+    ENV_FILE="$SHOP_DIR/.env"
+    
+    if [ ! -f "$ENV_FILE" ]; then
+        echo ".env file not found in $SHOP_DIR. Please enter the required information:"
         read -p "Database name: " DB_NAME
         read -p "Database host: " DB_HOST
         read -p "Database port: " DB_PORT
@@ -36,21 +38,33 @@ create_mysql_backup() {
         read -sp "Database password: " DB_PASS
         echo
     else
-        echo "Reading database credentials from DATABASE_URL..."
-        PROTOCOL="$(echo $DATABASE_URL | grep :// | sed -e's,^\(.*://\).*,\1,g')"
-        URL="$(echo ${DATABASE_URL/$PROTOCOL/})"
-        USERPASS="$(echo $URL | grep @ | cut -d@ -f1)"
-        PASS="$(echo $USERPASS | grep : | cut -d: -f2)"
-        USER="$(echo $USERPASS | grep : | cut -d: -f1)"
-        HOSTPORT="$(echo ${URL/$USERPASS@/} | cut -d/ -f1)"
-        PORT="$(echo $HOSTPORT | grep : | cut -d: -f2)"
-        HOST="$(echo $HOSTPORT | grep : | cut -d: -f1)"
-        DB_NAME="$(echo $URL | grep / | cut -d/ -f2-)"
+        echo "Reading database credentials from DATABASE_URL in .env file..."
+        export $(grep -v '^#' "$ENV_FILE" | xargs)
+        
+        if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL not set in .env file. Please enter the required information:"
+            read -p "Database name: " DB_NAME
+            read -p "Database host: " DB_HOST
+            read -p "Database port: " DB_PORT
+            read -p "Database username: " DB_USER
+            read -sp "Database password: " DB_PASS
+            echo
+        else
+            PROTOCOL="$(echo $DATABASE_URL | grep :// | sed -e's,^\(.*://\).*,\1,g')"
+            URL="$(echo ${DATABASE_URL/$PROTOCOL/})"
+            USERPASS="$(echo $URL | grep @ | cut -d@ -f1)"
+            PASS="$(echo $USERPASS | grep : | cut -d: -f2)"
+            USER="$(echo $USERPASS | grep : | cut -d: -f1)"
+            HOSTPORT="$(echo ${URL/$USERPASS@/} | cut -d/ -f1)"
+            PORT="$(echo $HOSTPORT | grep : | cut -d: -f2)"
+            HOST="$(echo $HOSTPORT | grep : | cut -d: -f1)"
+            DB_NAME="$(echo $URL | grep / | cut -d/ -f2-)"
 
-        DB_USER="$(urldecode $USER)"
-        DB_PASS="$(urldecode $PASS)"
-        DB_HOST="$HOST"
-        DB_PORT="${PORT:-3306}" # default MySQL port
+            DB_USER="$(urldecode $USER)"
+            DB_PASS="$(urldecode $PASS)"
+            DB_HOST="$HOST"
+            DB_PORT="${PORT:-3306}" # default MySQL port
+        fi
     fi
 
     cd ~/../../web/shopware_cli
@@ -90,14 +104,13 @@ while getopts ":s:u:h:d:" opt; do
 done
 shift $((OPTIND -1))
 
-if [ -f .env ]; then
-    export $(cat .env | xargs)
-fi
-
 download_shopware_cli
+
 echo "Creating backup of $SHOP_DIR directory..."
 tar cfvz shop.tar.gz $SHOP_DIR/
+
 create_mysql_backup
+
 transfer_files
 
 echo "Backup and file transfer completed."
