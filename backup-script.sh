@@ -27,7 +27,7 @@ urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 create_mysql_backup() {
     echo "Creating MySQL backup using Shopware CLI Tools..."
 
-    ENV_FILE="$SHOP_DIR/.env"
+    ENV_FILE="$SHOP_DIR/.env.local"
     
     if [ ! -f "$ENV_FILE" ]; then
         echo ".env file not found in $SHOP_DIR. Please enter the required information:"
