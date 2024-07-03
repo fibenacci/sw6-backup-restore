@@ -83,7 +83,7 @@ create_mysql_backup() {
 
 create_file_backup() {
     echo "Creating backup of $SHOP_DIR directory..."
-    tar cfvz shop.tar.gz -C "$SHOP_DIR" .
+    tar cfvz shop.tar.gz --exclude=shop/ageverification_archive --exclude=shop/**/AgeVerification_* --exclude=shop/var/cache/* --exclude=shop/var/log/* -C "$SHOP_DIR" .
 }
 
 transfer_files() {
