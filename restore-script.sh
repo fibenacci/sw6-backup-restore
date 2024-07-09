@@ -13,7 +13,7 @@ fi
 cd "$SHOPWARE_PATH" || exit
 
 # Mailer deaktivieren
-bin/console system:config:set core.mailerSettings.emailAgent "null"
+bin/console system:config:set core.mailerSettings.emailAgent ""
 bin/console system:config:set core.mailerSettings.disableDelivery "true"
 
 # Änderungen anwenden
