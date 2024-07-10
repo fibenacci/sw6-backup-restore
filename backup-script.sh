@@ -19,7 +19,7 @@ download_shopware_cli() {
     echo "Downloading and configuring Shopware CLI Tools..."
     cd ~/../../web/
     mkdir -p shopware_cli && cd shopware_cli
-    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.19/shopware-cli_Linux_x86_64.tar.gz
+    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.48/shopware-cli_Linux_x86_64.tar.gz
     tar xfvz shopware-cli_Linux_x86_64.tar.gz
     rm shopware-cli_Linux_x86_64.tar.gz
     ./shopware-cli project config init
