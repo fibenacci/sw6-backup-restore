@@ -19,7 +19,7 @@ download_shopware_cli() {
     echo "Downloading and configuring Shopware CLI Tools..."
     cd ~/../../web/
     mkdir -p shopware_cli && cd shopware_cli
-    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.48/shopware-cli_Linux_x86_64.tar.gz
+    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.19/shopware-cli_Linux_x86_64.tar.gz
     tar xfvz shopware-cli_Linux_x86_64.tar.gz
     rm shopware-cli_Linux_x86_64.tar.gz
     ./shopware-cli project config init
@@ -35,6 +35,61 @@ get_domain_name() {
     else
         echo "domain_not_found"
     fi
+}
+
+create_anonymization_file() {
+    DOMAIN_NAME=$(get_domain_name)
+    cat > .shopware-project.yml <<EOL
+url: $DOMAIN_NAME
+dump: 
+# rewrite columns 
+ rewrite: 
+  user:
+    first_name: "faker.Person.FirstName()"
+    last_name: "faker.Person.LastName()"
+    email: "faker.Internet.Email()"  
+  customer:
+    first_name: "faker.Person.FirstName()"
+    last_name: "faker.Person.LastName()"
+    company: "faker.Person.Name()"
+    title: "faker.Person.Name()"
+    email: "faker.Internet.Email()"
+    remote_address: "faker.Internet.Ipv4()"
+  customer_address: 
+    first_name: "faker.Person.FirstName()"
+    last_name: "faker.Person.LastName()"
+    company: "faker.Person.Name()"
+    title: "faker.Person.Name()"
+    street: "faker.Address.StreetAddress()"
+    zipcode: "faker.Address.PostCode()"
+    city: "faker.Address.City()"
+    phone_number: "faker.Phone.Number()"
+  log_entry:
+    provider: ""
+  newsletter_recipient:
+    email: "faker.Internet.Email()"
+    first_name: "faker.Person.FirstName()"
+    last_name: "faker.Person.LastName()"
+    city: "faker.Address.City()"
+  order_address:
+    first_name: "faker.Person.FirstName()"
+    last_name: "faker.Person.LastName()"
+    company: "faker.Person.Name()"
+    title: "faker.Person.Name()"
+    street: "faker.Address.StreetAddress()"
+    zipcode: "faker.Address.PostCode()"
+    city: "faker.Address.City()"
+    phone_number: "faker.Phone.Number()"
+  order_customer:
+    first_name: "faker.Person.FirstName()"
+    last_name: "faker.Person.LastName()"
+    company: "faker.Person.Name()"
+    title: "faker.Person.Name()"
+    email: "faker.Internet.Email()"
+    remote_address: "faker.Internet.Ipv4()"
+  product_review:
+    email: "faker.Internet.Email()"
+EOL
 }
 
 create_mysql_backup() {
@@ -91,6 +146,12 @@ create_mysql_backup() {
     echo "  Database password: $DB_PASS"
 
     cd ~/../../web/shopware_cli
+
+    read -p "Do you want to anonymize the data? (y/n): " anonymize_data
+    if [ "$anonymize_data" == "y" ]; then
+        create_anonymization_file
+    fi
+
     ./shopware-cli project dump $DB_NAME --host $DB_HOST --port $DB_PORT --username $DB_USER --password $DB_PASS --clean --skip-lock-tables
 
     DOMAIN_NAME=$(get_domain_name)
