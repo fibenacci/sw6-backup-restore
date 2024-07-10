@@ -1,6 +1,9 @@
 #!/bin/bash
 
 SHOP_DIR="$PWD/shop"
+SCP_HOST="176.9.130.42"
+SCP_USER="webv_bucket_ssh"
+SCP_DESTINATION_PATH="/var/www/clients/client6/web10/home/webv_bucket_ssh/"
 
 usage() {
     echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path]"
@@ -24,6 +27,16 @@ download_shopware_cli() {
 
 urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 
+get_domain_name() {
+    ENV_FILE="$SHOP_DIR/.env.local"
+    if [ -f "$ENV_FILE" ]; then
+        DOMAIN_NAME=$(grep 'APP_URL' "$ENV_FILE" | cut -d'=' -f2 | awk -F[/:] '{print $4}')
+        echo "$DOMAIN_NAME"
+    else
+        echo "domain_not_found"
+    fi
+}
+
 create_mysql_backup() {
     echo "Creating MySQL backup using Shopware CLI Tools..."
 
@@ -41,7 +54,7 @@ create_mysql_backup() {
         echo "Reading database credentials from DATABASE_URL in .env file..."
         export $(grep -v '^#' "$ENV_FILE" | xargs)
         
-        if [ -z "$DATABASE_URL" ]; then
+        if [ -z "$DATABASE_URL" ];then
             echo "DATABASE_URL not set in .env file. Please enter the required information:"
             read -p "Database name: " DB_NAME
             read -p "Database host: " DB_HOST
@@ -79,11 +92,19 @@ create_mysql_backup() {
 
     cd ~/../../web/shopware_cli
     ./shopware-cli project dump $DB_NAME --host $DB_HOST --port $DB_PORT --username $DB_USER --password $DB_PASS --clean --skip-lock-tables
+
+    DOMAIN_NAME=$(get_domain_name)
+    CURRENT_USER=$(whoami)
+    mv dump.sql "${DOMAIN_NAME}_${CURRENT_USER}_dump.sql"
 }
 
 create_file_backup() {
     echo "Creating backup of $SHOP_DIR directory..."
     tar cfvz shop.tar.gz --exclude=shop/ageverification_archive --exclude=shop/**/AgeVerification_* --exclude=shop/var/cache/* --exclude=shop/var/log/* -C "$SHOP_DIR" .
+    
+    DOMAIN_NAME=$(get_domain_name)
+    CURRENT_USER=$(whoami)
+    mv shop.tar.gz "${DOMAIN_NAME}_${CURRENT_USER}_shop.tar.gz"
 }
 
 transfer_files() {
@@ -92,8 +113,11 @@ transfer_files() {
     read -sp "Enter password for SCP: " SCP_PASS
     echo
 
-    scp shop.tar.gz $SCP_USER@$SCP_HOST:$SCP_DESTINATION_PATH
-    scp dump.sql $SCP_USER@$SCP_HOST:$SCP_DESTINATION_PATH
+    DOMAIN_NAME=$(get_domain_name)
+    CURRENT_USER=$(whoami)
+
+    scp "${DOMAIN_NAME}_${CURRENT_USER}_shop.tar.gz" $SCP_USER@$SCP_HOST:$SCP_DESTINATION_PATH
+    scp "${DOMAIN_NAME}_${CURRENT_USER}_dump.sql" $SCP_USER@$SCP_HOST:$SCP_DESTINATION_PATH
     echo "Files transferred successfully."
 }
 
