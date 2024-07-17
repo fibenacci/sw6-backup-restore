@@ -23,3 +23,5 @@ fi
 show_disk_usage "$1"
 
 delete_files "$1"
+
+show_disk_usage "$1"
