@@ -1,144 +1,68 @@
 #!/bin/bash
 
-# Default values
-SHOP_DIR="$PWD/shop"
+CURRENT_DIR="$PWD"
+CURRENT_FOLDER=$(basename "$PWD")
 
-# Function to show usage information
-usage() {
-    echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path]"
-    echo "Options:"
-    echo "  -s    Specify the shop directory (default: shop)"
-    echo "  -u    Specify the username for SCP"
-    echo "  -h    Specify the host for SCP"
-    echo "  -d    Specify the destination path on the remote server"
+create_backup() {
+  bin/console sales-channel:maintenance:enable --all
+  cd ..
+  tar cfvz live-backup.tar.gz $CURRENT_FOLDER
+  cd $CURRENT_DIR
+
+  ENV_FILE=".env.local"
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "Die Datei $ENV_FILE existiert nicht."
     exit 1
-}
+  fi
 
-# Function to download and configure Shopware CLI Tools
-download_shopware_cli() {
-    echo "Downloading and configuring Shopware CLI Tools..."
-    cd ~/../../web/
-    mkdir -p shopware_cli && cd shopware_cli
-    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.19/shopware-cli_Linux_x86_64.tar.gz
-    tar xfvz shopware-cli_Linux_x86_64.tar.gz
-    rm shopware-cli_Linux_x86_64.tar.gz
-    ./shopware-cli project config init
-}
-
-# Function to decode URL encoded strings
-urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
-
-# Function to create MySQL backup using Shopware CLI Tools
-create_mysql_backup() {
-    echo "Creating MySQL backup using Shopware CLI Tools..."
-
-    ENV_FILE="$SHOP_DIR/.env"
-    
-    if [ ! -f "$ENV_FILE" ]; then
-        echo ".env file not found in $SHOP_DIR. Please enter the required information:"
-        read -p "Database name: " DB_NAME
-        read -p "Database host: " DB_HOST
-        read -p "Database port: " DB_PORT
-        read -p "Database username: " DB_USER
-        read -sp "Database password: " DB_PASS
-        echo
-    else
-        echo "Reading database credentials from DATABASE_URL in .env file..."
-        export $(grep -v '^#' "$ENV_FILE" | xargs)
-        
-        if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL not set in .env file. Please enter the required information:"
-            read -p "Database name: " DB_NAME
-            read -p "Database host: " DB_HOST
-            read -p "Database port: " DB_PORT
-            read -p "Database username: " DB_USER
-            read -sp "Database password: " DB_PASS
-            echo
-        else
-            # Extracting credentials from DATABASE_URL using awk
-            PROTOCOL="$(echo $DATABASE_URL | awk -F '://' '{print $1}')"
-            URL="$(echo $DATABASE_URL | awk -F '://' '{print $2}')"
-            USERPASS="$(echo $URL | awk -F '@' '{print $1}')"
-            HOSTPORT_DB="$(echo $URL | awk -F '@' '{print $2}')"
-
-            USER="$(echo $USERPASS | awk -F ':' '{print $1}')"
-            PASS="$(echo $USERPASS | awk -F ':' '{print $2}')"
-            HOSTPORT="$(echo $HOSTPORT_DB | awk -F '/' '{print $1}')"
-            DB_NAME="$(echo $HOSTPORT_DB | awk -F '/' '{print $2}')"
-            
-            HOST="$(echo $HOSTPORT | awk -F ':' '{print $1}')"
-            PORT="$(echo $HOSTPORT | awk -F ':' '{print $2}')"
-            
-            DB_USER="$(urldecode $USER)"
-            DB_PASS="$(urldecode $PASS)"
-            DB_HOST="$HOST"
-            DB_PORT="${PORT:-3306}" # default MySQL port
-        fi
+  urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
+  while IFS= read -r line; do
+    if [[ "$line" == *"DATABASE_URL="* ]]; then
+      DATABASE_URL="${line#*=}"
+      DATABASE_URL=$(urldecode "$DATABASE_URL")
+      USER=$(echo "$DATABASE_URL" | awk -F'[/:@]' '{print $4}')
+      PASSWORD=$(echo "$DATABASE_URL" | awk -F'[/:@]' '{print $5}')
+      HOST=$(echo "$DATABASE_URL" | awk -F'[/:@]' '{print $6}')
+      PORT=$(echo "$DATABASE_URL" | awk -F'[/:@]' '{print $7}')
+      DATABASE=$(echo "$DATABASE_URL" | awk -F'[/:@]' '{print $8}')
+      cd ..
+      mysqldump -u "$USER" -p"$PASSWORD" -h "$HOST" -P "$PORT" "$DATABASE" > live-backup.sql
+      cd $CURRENT_DIR
+      if [ $? -eq 0 ]; then
+        echo "Backup erfolgreich erstellt: live-backup.sql"
+      else
+        echo "Fehler beim Erstellen des Backups."
+        exit 1
+      fi
     fi
+  done < "$ENV_FILE"
 
-    # Output the database credentials
-    echo "Database credentials:"
-    echo "  Database name: $DB_NAME"
-    echo "  Database host: $DB_HOST"
-    echo "  Database port: $DB_PORT"
-    echo "  Database username: $DB_USER"
-    echo "  Database password: $DB_PASS"
-
-    cd ~/../../web/shopware_cli
-    ./shopware-cli project dump $DB_NAME --host $DB_HOST --port $DB_PORT --username $DB_USER --password $DB_PASS --clean --skip-lock-tables
+  bin/console cache:clear
+  bin/console system:update:prepare
 }
 
-# Function to create file backup
-create_file_backup() {
-    echo "Creating backup of $SHOP_DIR directory..."
-    tar cfvz shop.tar.gz $SHOP_DIR/
-}
+read -p "Möchten Sie ein Backup erstellen? (j/n): " BACKUP_CHOICE
 
-# Function to transfer files using SCP
-transfer_files() {
-    echo "Transferring files using SCP..."
-    read -p "Enter username for SCP: " SCP_USER
-    read -sp "Enter password for SCP: " SCP_PASS
-    echo
+if [[ "$BACKUP_CHOICE" == "j" || "$BACKUP_CHOICE" == "J" ]]; then
+  create_backup
+else
+  echo "Backup wird übersprungen."
+fi
 
-    scp shop.tar.gz $SCP_USER@$SCP_HOST:$SCP_DESTINATION_PATH
-    scp dump.sql $SCP_USER@$SCP_HOST:$SCP_DESTINATION_PATH
-    echo "Files transferred successfully."
-}
-
-# Parse command-line options
-while getopts ":s:u:h:d:" opt; do
-    case ${opt} in
-        s)
-            SHOP_DIR="$PWD/$OPTARG"
-            ;;
-        u)
-            SCP_USER=$OPTARG
-            ;;
-        h)
-            SCP_HOST=$OPTARG
-            ;;
-        d)
-            SCP_DESTINATION_PATH=$OPTARG
-            ;;
-        \?)
-            echo "Invalid option: -$OPTARG" >&2
-            usage
-            ;;
-    esac
-done
-shift $((OPTIND -1))
-
-# Download and configure Shopware CLI Tools
-download_shopware_cli
-
-# Create MySQL backup if specified
-create_mysql_backup
-
-# Create file backup
-create_file_backup
-
-# Transfer files using SCP
-transfer_files
-
-echo "Backup and file transfer completed."
+composer install
+bin/console system:update:finish
+bin/console plugin:refresh
+bin/console plugin:install -r -n ""
+bin/console plugin:update -r -n ""
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+cd ~
+source .bashrc
+nvm ls-remote
+nvm install v18.17.1
+cd $CURRENT_FOLDER
+bin/build-administration.sh
+bin/build-storefront.sh
+bin/console assets:install
+bin/console theme:compile
+bin/console cache:clear
+bin/console sales-channel:maintenance:disable --all
