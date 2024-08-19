@@ -90,38 +90,38 @@ dump:
   product_review:
     email: "faker.Internet.Email()"
   b2b_components_pending_order_address:
-    company: faker.Person.Name(),
-    title: faker.Person.Name(),
-    first_name: faker.Person.FirstName(),
-    last_name: faker.Person.LastName(),
+    company: "faker.Person.Name()",
+    title: "faker.Person.Name()",
+    first_name: "faker.Person.FirstName()",
+    last_name: "faker.Person.LastName()",
     street: "faker.Address.StreetAddress()",
     zipcode: "faker.Address.PostCode()",
     city: "faker.Address.City()",
     phone_number: "faker.Phone.Number()"
   b2b_employee:
-    first_name: faker.Person.FirstName(),
-    last_name: faker.Person.LastName(),
+    first_name: "faker.Person.FirstName()",
+    last_name: "faker.Person.LastName()",
     email: "faker.Internet.Email()"
   b2bsellers_employee:
     email: "faker.Internet.Email()",
-    first_name: faker.Person.FirstName(),
-    last_name: faker.Person.LastName(),
+    first_name: "faker.Person.FirstName()",
+    last_name: "faker.Person.LastName()",
     phone_number: "faker.Phone.Number()",
     mobile_phone_number: "faker.Phone.Number()",
   b2bsellers_offer_address:
-    company: faker.Person.Name(),
-    title: faker.Person.Name(),
-    first_name: faker.Person.FirstName(),
-    last_name: faker.Person.LastName(),
+    company: "faker.Person.Name()",
+    title: "faker.Person.Name()",
+    first_name: "faker.Person.FirstName()",
+    last_name: "faker.Person.LastName()",
     street: "faker.Address.StreetAddress()",
     zipcode: "faker.Address.PostCode()",
     city: "faker.Address.City()",
     phone_number: "faker.Phone.Number()"
   b2bsellers_offer_customer:
-    company: faker.Person.Name(),
-    title: faker.Person.Name(),
-    first_name: faker.Person.FirstName(),
-    last_name: faker.Person.LastName(),
+    company: "faker.Person.Name()",
+    title: "faker.Person.Name()",
+    first_name: "faker.Person.FirstName()",
+    last_name: "faker.Person.LastName()",
     street: "faker.Address.StreetAddress()",
     zipcode: "faker.Address.PostCode()",
     city: "faker.Address.City()",
