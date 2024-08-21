@@ -4,19 +4,20 @@ SHOP_DIR="$PWD/shop"
 SCP_HOST="176.9.130.42"
 SCP_USER="webv_bucket_ssh"
 SCP_DESTINATION_PATH="/var/www/clients/client6/web10/home/webv_bucket_ssh/"
+EXCLUDE_MEDIA=false
 
 usage() {
-    echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path]"
+    echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path] [--exclude-media]"
     echo "Options:"
     echo "  -s    Specify the shop directory (default: shop)"
     echo "  -u    Specify the username for SCP"
     echo "  -h    Specify the host for SCP"
     echo "  -d    Specify the destination path on the remote server"
+    echo "  --exclude-media    Exclude media and thumbnail directories from the backup"
     exit 1
 }
 
 download_shopware_cli() {
-    echo "Downloading and configuring Shopware CLI Tools..."
     cd ~/../../web/
     mkdir -p shopware_cli && cd shopware_cli
     wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.19/shopware-cli_Linux_x86_64.tar.gz
@@ -42,7 +43,6 @@ create_anonymization_file() {
     cat > .shopware-project.yml <<EOL
 url: $DOMAIN_NAME
 dump: 
-# rewrite columns 
  rewrite: 
   user:
     first_name: "faker.Person.FirstName()"
@@ -130,12 +130,9 @@ EOL
 }
 
 create_mysql_backup() {
-    echo "Creating MySQL backup using Shopware CLI Tools..."
-
     ENV_FILE="$SHOP_DIR/.env.local"
     
     if [ ! -f "$ENV_FILE" ]; then
-        echo ".env file not found in $SHOP_DIR. Please enter the required information:"
         read -p "Database name: " DB_NAME
         read -p "Database host: " DB_HOST
         read -p "Database port: " DB_PORT
@@ -143,11 +140,9 @@ create_mysql_backup() {
         read -sp "Database password: " DB_PASS
         echo
     else
-        echo "Reading database credentials from DATABASE_URL in .env file..."
         export $(grep -v '^#' "$ENV_FILE" | xargs)
         
         if [ -z "$DATABASE_URL" ];then
-            echo "DATABASE_URL not set in .env file. Please enter the required information:"
             read -p "Database name: " DB_NAME
             read -p "Database host: " DB_HOST
             read -p "Database port: " DB_PORT
@@ -175,13 +170,6 @@ create_mysql_backup() {
         fi
     fi
 
-    echo "Database credentials:"
-    echo "  Database name: $DB_NAME"
-    echo "  Database host: $DB_HOST"
-    echo "  Database port: $DB_PORT"
-    echo "  Database username: $DB_USER"
-    echo "  Database password: $DB_PASS"
-
     cd ~/../../web/shopware_cli
 
     read -p "Do you want to anonymize the data? (y/n): " anonymize_data
@@ -198,7 +186,7 @@ create_mysql_backup() {
 
 create_file_backup() {
     echo "Creating backup of $SHOP_DIR directory..."
-    tar cfvz shop.tar.gz --exclude=shop/ageverification_archive --exclude=shop/**/AgeVerification_* --exclude=shop/var/cache/* --exclude=shop/var/log/* -C "$SHOP_DIR" .
+    tar cfvz shop.tar.gz --exclude=shop/ageverification_archive --exclude=shop/**/AgeVerification_* --exclude=shop/var/cache/* --exclude=shop/var/log/* $( [ "$EXCLUDE_MEDIA" == true ] && echo "--exclude=shop/public/media --exclude=shop/public/thumbnail" ) -C "$SHOP_DIR" .
     
     DOMAIN_NAME=$(get_domain_name)
     CURRENT_USER=$(whoami)
@@ -206,7 +194,6 @@ create_file_backup() {
 }
 
 transfer_files() {
-    echo "Transferring files using SCP..."
     read -p "Enter username for SCP: " SCP_USER
     read -sp "Enter password for SCP: " SCP_PASS
     echo
@@ -219,7 +206,7 @@ transfer_files() {
     echo "Files transferred successfully."
 }
 
-while getopts ":s:u:h:d:" opt; do
+while getopts ":s:u:h:d:-:" opt; do
     case ${opt} in
         s)
             SHOP_DIR="$PWD/$OPTARG"
@@ -232,6 +219,17 @@ while getopts ":s:u:h:d:" opt; do
             ;;
         d)
             SCP_DESTINATION_PATH=$OPTARG
+            ;;
+        -)
+            case "${OPTARG}" in
+                exclude-media)
+                    EXCLUDE_MEDIA=true
+                    ;;
+                *)
+                    echo "Invalid option: --$OPTARG" >&2
+                    usage
+                    ;;
+            esac
             ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
