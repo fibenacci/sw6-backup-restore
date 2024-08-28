@@ -186,7 +186,7 @@ create_mysql_backup() {
 
 create_file_backup() {
     echo "Creating backup of $SHOP_DIR directory..."
-    tar cfvz shop.tar.gz --exclude=shop/ageverification_archive --exclude=shop/**/AgeVerification_* --exclude=shop/var/cache/* --exclude=shop/var/log/* $( [ "$EXCLUDE_MEDIA" == true ] && echo "--exclude=shop/public/media --exclude=shop/public/thumbnail" ) -C "$SHOP_DIR" .
+    tar cfvz shop.tar.gz --exclude=./ageverification_archive --exclude=./**/AgeVerification_* --exclude=./var/cache/* --exclude=./var/log/* $( [ "$EXCLUDE_MEDIA" == true ] && echo "--exclude=./public/media --exclude=./public/thumbnail" ) -C "$SHOP_DIR" .
     
     DOMAIN_NAME=$(get_domain_name)
     CURRENT_USER=$(whoami)
