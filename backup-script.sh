@@ -4,7 +4,7 @@ SHOP_DIR="$PWD/shop"
 SCP_HOST="176.9.130.42"
 SCP_USER="webv_bucket_ssh"
 SCP_DESTINATION_PATH="/var/www/clients/client6/web10/home/webv_bucket_ssh/"
-EXCLUDE_MEDIA=false
+EXCLUDE_MEDIA=true
 
 usage() {
     echo "Usage: $0 [-s shop_dir] [-u username] [-h host] [-d destination_path] [--exclude-media]"
