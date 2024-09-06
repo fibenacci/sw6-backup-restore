@@ -13,7 +13,7 @@ usage() {
     echo "  -u    Specify the username for SCP"
     echo "  -h    Specify the host for SCP"
     echo "  -d    Specify the destination path on the remote server"
-    echo "  --exclude-media    Exclude media and thumbnail directories from the backup"
+    echo "  --include-media    Exclude media and thumbnail directories from the backup"
     exit 1
 }
 
@@ -222,8 +222,8 @@ while getopts ":s:u:h:d:-:" opt; do
             ;;
         -)
             case "${OPTARG}" in
-                exclude-media)
-                    EXCLUDE_MEDIA=true
+                include-media)
+                    EXCLUDE_MEDIA=false
                     ;;
                 *)
                     echo "Invalid option: --$OPTARG" >&2
