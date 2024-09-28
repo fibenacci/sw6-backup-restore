@@ -1,9 +1,9 @@
 #!/bin/bash
 
 SHOP_DIR="$PWD/shop"
-SCP_HOST="176.9.130.42"
-SCP_USER="webv_bucket_ssh"
-SCP_DESTINATION_PATH="/var/www/clients/client6/web10/home/webv_bucket_ssh/"
+SCP_HOST=""
+SCP_USER=""
+SCP_DESTINATION_PATH=""
 EXCLUDE_MEDIA=true
 
 usage() {
@@ -20,7 +20,7 @@ usage() {
 download_shopware_cli() {
     cd ~/../../web/
     mkdir -p shopware_cli && cd shopware_cli
-    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.19/shopware-cli_Linux_x86_64.tar.gz
+    wget https://github.com/FriendsOfShopware/shopware-cli/releases/download/0.4.54/shopware-cli_Linux_x86_64.tar.gz
     tar xfvz shopware-cli_Linux_x86_64.tar.gz
     rm shopware-cli_Linux_x86_64.tar.gz
     ./shopware-cli project config init
